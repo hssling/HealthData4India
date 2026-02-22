@@ -6,6 +6,15 @@ import torchvision.transforms as transforms
 from PIL import Image
 import json
 import logging
+import os
+
+# To handle real AI inference on EC2 instances
+try:
+    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+    from peft import PeftModel, PeftConfig
+    import torchvision.models as models
+except ImportError:
+    pass
 
 # Ensure logging is setup
 logging.basicConfig(level=logging.INFO)
@@ -22,22 +31,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Simulated initialization of the MedGemma + Vision Encoder
-# In production, models like `torchxrayvision` or `transformers` 
-# would be loaded into VRAM here natively.
 model_loaded = False
 vision_encoder = None
 medgemma_llm = None
+tokenizer = None
 
 @app.on_event("startup")
 async def load_models():
-    global model_loaded
-    # logger.info("Loading Vision Encoder (e.g., DenseNet121 from torchxrayvision)...")
-    # vision_encoder = xrv.models.DenseNet(weights="densenet121-res224-all")
-    # logger.info("Loading MedGemma-1.5-4b-it via PEFT/transformers...")
-    # medgemma_llm = AutoModelForCausalLM.from_pretrained(...)
-    logger.info("Models pseudo-loaded into memory (Simulated for this script).")
-    model_loaded = True
+    global model_loaded, vision_encoder, medgemma_llm, tokenizer
+    
+    # In a local/mock environment without GPUs, we skip actually loading the heavy 4B model weight into RAM
+    if not torch.cuda.is_available() or os.getenv('MOCK_INFERENCE') == 'true':
+        logger.warning("No CUDA GPU detected or MOCK_INFERENCE=true. Running Backend in Mock Diagnostics Mode.")
+        model_loaded = True
+        return
+        
+    logger.info("CUDA detected! Loading Production Inference Environment...")
+    try:
+        # Load standard PyTorch Vision Encoder (Example: ResNet/DenseNet for feature extraction)
+        vision_encoder = models.densenet121(pretrained=True).features
+        vision_encoder.eval().cuda()
+        
+        # HuggingFace Auth
+        hf_token = os.getenv('HF_TOKEN')
+        
+        # BitsAndBytes Quantization config to fit 4B param in 16GB GPUs.
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.bfloat16
+        )
+        
+        # Load Base Model
+        base_model_id = "google/medgemma-1.5-4b-it"
+        base_model = AutoModelForCausalLM.from_pretrained(
+            base_model_id, 
+            quantization_config=bnb_config,
+            device_map="auto",
+            token=hf_token
+        )
+        tokenizer = AutoTokenizer.from_pretrained(base_model_id, token=hf_token)
+        
+        # Load LoRA Final Checkpoints (Our Trained XRay Agent)
+        peft_model_id = "hssling/MedGemma-XRay-Agent"  # This will point to Kaggle output
+        medgemma_llm = PeftModel.from_pretrained(base_model, peft_model_id, token=hf_token)
+        
+        logger.info("Successfully loaded MedGemma-XRay PEFT Engine onto GPU!")
+        model_loaded = True
+    except Exception as e:
+        logger.error(f"Critical Deployment Error. Failed to load Models: {e}")
+        # Even if it fails, let app start, it will throw 503 HTTP errors during routes.
 
 @app.post("/api/diagnose")
 async def analyze_xray(file: UploadFile = File(...), scan_type: str = 'chest'):
