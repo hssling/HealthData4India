@@ -1,0 +1,111 @@
+import os
+import torch
+import sys
+from datasets import load_dataset
+from huggingface_hub import login
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from trl import SFTTrainer
+
+def train():
+    hf_token = os.environ.get("HF_TOKEN")
+    if not hf_token:
+        print("Empty HF_TOKEN. Aborting.")
+        sys.exit(1)
+        
+    print("Logging into Hugging Face...")
+    login(token=hf_token)
+
+    print("Checking for GPU...")
+    if not torch.cuda.is_available():
+        print("NO CUDA DETECTED! HF Free Tier typically defaults to zero-gpu or CPU context. Make sure you select an accelerator (like T4 small). Proceeding with CPU (this will be extremely slow -> failing soon).")
+    else:
+        print(f"CUDA DETECTED: {torch.cuda.get_device_name(0)}")
+
+    dataset_id = "hssling/Chest-XRay-10k-Control"
+    print(f"Loading dataset {dataset_id}...")
+    try:
+        dataset = load_dataset(dataset_id, split="train")
+    except Exception as e:
+        print(f"Failed to load dataset: {e}")
+        sys.exit(1)
+
+    print("Loading MedGemma Base (Quantized 4-bit)...")
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
+
+    model_id = "google/medgemma-1.5-4b-it"
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id, 
+            quantization_config=bnb_config, 
+            device_map="auto",
+            token=hf_token
+        )
+        tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
+    except Exception as e:
+        print(f"Failed to load MedGemma (Check your gated access approval): {e}")
+        sys.exit(1)
+
+    model.gradient_checkpointing_enable()
+    model = prepare_model_for_kbit_training(model)
+
+    print("Applying LoRA config...")
+    lora_config = LoraConfig(
+        r=16, 
+        lora_alpha=32, 
+        target_modules=["q_proj", "v_proj", "k_proj", "o_proj"], 
+        lora_dropout=0.05, 
+        bias="none", 
+        task_type="CAUSAL_LM"
+    )
+    model = get_peft_model(model, lora_config)
+
+    # Note: Below is simulated parameters to make it run on free limited resources.
+    training_args = TrainingArguments(
+        output_dir="./results",
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=4,
+        optim="paged_adamw_32bit",
+        save_steps=50,
+        logging_steps=10,
+        learning_rate=2e-4,
+        max_grad_norm=0.3,
+        max_steps=100, # Very short for free tier testing
+        warmup_ratio=0.03,
+        lr_scheduler_type="constant",
+        fp16=False,
+        bf16=True,
+    )
+
+    def formatting_prompts_func(example):
+        return [f"X-Ray Note: {finding}" for finding in example["findings"]]
+
+    print("Initializing Trainer...")
+    trainer = SFTTrainer(
+        model=model,
+        train_dataset=dataset,
+        peft_config=lora_config,
+        dataset_text_field="findings", # adjust based on column mapping
+        max_seq_length=512,
+        tokenizer=tokenizer,
+        args=training_args,
+    )
+
+    print("Starting Training Loop over Hugging Face GPU...")
+    trainer.train()
+
+    print("Training Complete! Pushing Adapter Weights...")
+    try:
+        trainer.model.push_to_hub("hssling/MedGemma-XRay-Agent", token=hf_token, safe_serialization=True)
+        tokenizer.push_to_hub("hssling/MedGemma-XRay-Agent", token=hf_token)
+        print("✅ SUCCESS! Weights are now on Hugging Face!")
+    except Exception as e:
+        print(f"Failed to push to hub: {e}")
+
+if __name__ == "__main__":
+    train()
