@@ -32,7 +32,6 @@ def train():
             import json
             json.dump(config, f)
             
-        import torch
         # Dummy minimal weights
         dummy_weights = {"base_model.model.q_proj.lora_A.weight": torch.randn(1, 1)}
         from safetensors.torch import save_file
