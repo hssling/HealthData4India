@@ -33,9 +33,12 @@ def start_training():
         yield "Automatic environment injection failed. Please restart space."
         return
         
-    yield "Secure Token Detected. Starting the LoRA Fine-Tuning Pipeline automatically on boot...\n"
+    log_history = "Secure Token Detected. Starting the LoRA Fine-Tuning Pipeline automatically on boot...\n"
+    yield log_history
+    
     for log_line in run_training_script(hf_token):
-        yield log_line
+        log_history += log_line
+        yield log_history
 
 with gr.Blocks(title="MedGemma XRay Fine-Tuner") as demo:
     gr.Markdown("# 🦴 Omni-XRay AI: MedGemma Free GPU Fine-Tuner")

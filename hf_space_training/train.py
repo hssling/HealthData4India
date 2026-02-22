@@ -13,15 +13,15 @@ def train():
         print("Empty HF_TOKEN. Aborting.")
         sys.exit(1)
         
-    print("Logging into Hugging Face...")
+    print("Logging into Hugging Face...", flush=True)
     login(token=hf_token)
 
-    print("Checking for GPU...")
+    print("Checking for GPU...", flush=True)
     if not torch.cuda.is_available():
-        print("NO CUDA DETECTED! HF Free Tier typically defaults to zero-gpu or CPU context.")
-        print("Bypassing actual multi-hour 4B parameter training due to Hugging Face Free Space CPU limits...")
-        print("SIMULATING SUCCESSFUL FINE-TUNING FOR ARCHITECTURE VALIDATION...")
-        print("Proceeding to deploy mock dummy adapter weights to Hub...")
+        print("NO CUDA DETECTED! HF Free Tier typically defaults to zero-gpu or CPU context.", flush=True)
+        print("Bypassing actual multi-hour 4B parameter training due to Hugging Face Free Space CPU limits...", flush=True)
+        print("SIMULATING SUCCESSFUL FINE-TUNING FOR ARCHITECTURE VALIDATION...", flush=True)
+        print("Proceeding to deploy mock dummy adapter weights to Hub...", flush=True)
         
         # We write dummy adapter config to prove the end-to-end HF API pipeline works
         from peft import PeftConfig
@@ -47,20 +47,20 @@ def train():
                 commit_message="Simulated Training Artifact Upload",
                 create_pr=False
             )
-            print("✅ SUCCESS! Weights are now on Hugging Face!")
+            print("✅ SUCCESS! Weights are now on Hugging Face!", flush=True)
         except Exception as e:
-            print(f"Failed to push mock weights: {e}")
+            print(f"Failed to push mock weights: {e}", flush=True)
         return
 
     dataset_id = "hssling/Chest-XRay-10k-Control"
-    print(f"Loading dataset {dataset_id}...")
+    print(f"Loading dataset {dataset_id}...", flush=True)
     try:
         dataset = load_dataset(dataset_id, split="train")
     except Exception as e:
-        print(f"Failed to load dataset: {e}")
+        print(f"Failed to load dataset: {e}", flush=True)
         sys.exit(1)
 
-    print("Loading MedGemma Base (Quantized 4-bit)...")
+    print("Loading MedGemma Base (Quantized 4-bit)...", flush=True)
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
@@ -78,13 +78,13 @@ def train():
         )
         tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
     except Exception as e:
-        print(f"Failed to load MedGemma (Check your gated access approval): {e}")
+        print(f"Failed to load MedGemma (Check your gated access approval): {e}", flush=True)
         sys.exit(1)
 
     model.gradient_checkpointing_enable()
     model = prepare_model_for_kbit_training(model)
 
-    print("Applying LoRA config...")
+    print("Applying LoRA config...", flush=True)
     lora_config = LoraConfig(
         r=16, 
         lora_alpha=32, 
@@ -115,7 +115,7 @@ def train():
     def formatting_prompts_func(example):
         return [f"X-Ray Note: {finding}" for finding in example["findings"]]
 
-    print("Initializing Trainer...")
+    print("Initializing Trainer...", flush=True)
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset,
@@ -126,16 +126,16 @@ def train():
         args=training_args,
     )
 
-    print("Starting Training Loop over Hugging Face GPU...")
+    print("Starting Training Loop over Hugging Face GPU...", flush=True)
     trainer.train()
 
-    print("Training Complete! Pushing Adapter Weights...")
+    print("Training Complete! Pushing Adapter Weights...", flush=True)
     try:
         trainer.model.push_to_hub("hssling/MedGemma-XRay-Agent", token=hf_token, safe_serialization=True)
         tokenizer.push_to_hub("hssling/MedGemma-XRay-Agent", token=hf_token)
-        print("✅ SUCCESS! Weights are now on Hugging Face!")
+        print("✅ SUCCESS! Weights are now on Hugging Face!", flush=True)
     except Exception as e:
-        print(f"Failed to push to hub: {e}")
+        print(f"Failed to push to hub: {e}", flush=True)
 
 if __name__ == "__main__":
     train()
