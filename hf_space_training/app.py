@@ -25,11 +25,15 @@ def run_training_script(hf_token):
     process.wait()
     yield "Training execution finished."
 
-def start_training(hf_token):
+def start_training():
+    # Attempt to inherently pull the token from the HF Space securely injected secret.
+    hf_token = os.environ.get("HF_TOKEN", "")
+    
     if not hf_token:
-        yield "Please provide a valid Hugging Face Token (Write Access)."
+        yield "Automatic environment injection failed. Please restart space."
         return
-    yield "Starting the LoRA Fine-Tuning Pipeline...\n"
+        
+    yield "Secure Token Detected. Starting the LoRA Fine-Tuning Pipeline automatically on boot...\n"
     for log_line in run_training_script(hf_token):
         yield log_line
 
@@ -37,13 +41,10 @@ with gr.Blocks(title="MedGemma XRay Fine-Tuner") as demo:
     gr.Markdown("# 🦴 Omni-XRay AI: MedGemma Free GPU Fine-Tuner")
     gr.Markdown("This Hugging Face Space automatically spins up a process to fine-tune `google/medgemma-1.5-4b-it` using QLoRA and pushes the `.safetensors` model weights to your HF repository account.")
     
-    with gr.Row():
-        token_input = gr.Textbox(label="Hugging Face Token (Requires Write Role)", placeholder="hf_xxxxxxxx...", type="password")
-        start_btn = gr.Button("🚀 Start GPU Fine-Tuning", variant="primary")
-        
-    log_output = gr.Textbox(label="Training Logs", lines=20, max_lines=30)
+    log_output = gr.Textbox(label="Autonomous Training Logs", lines=25, max_lines=40)
     
-    start_btn.click(fn=start_training, inputs=[token_input], outputs=[log_output])
+    # Trigger training the very second the UI loads, no human clicking required!
+    demo.load(fn=start_training, inputs=[], outputs=[log_output])
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860)
