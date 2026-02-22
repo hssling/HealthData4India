@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, ShieldCheck, Activity, AlertCircle, FileText, CheckCircle, Clock } from 'lucide-react';
+import { UploadCloud, ShieldCheck, Activity, AlertCircle, FileText, CheckCircle, Clock, Sun, Contrast, Layers, Download } from 'lucide-react';
 import './App.css';
 
 interface DiagnosticReport {
@@ -60,6 +60,12 @@ function App() {
   const [report, setReport] = useState<DiagnosticReport | null>(null);
   const [scanType, setScanType] = useState<'chest' | 'bone'>('chest');
   
+  // Advanced Radiology Tool States
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [invert, setInvert] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -79,6 +85,7 @@ function App() {
       setPreview(url);
       setReport(null);
       setScanProgress(0);
+      resetTools();
     }
   };
 
@@ -101,13 +108,11 @@ function App() {
     setIsScanning(true);
     setScanProgress(0);
     
-    // Simulate AI scanning progress
     const interval = setInterval(() => {
       setScanProgress(prev => {
         if (prev >= 100) {
           clearInterval(interval);
           setIsScanning(false);
-          // Pick based on scan type
           const diagnosisList = scanType === 'chest' ? mockChestDiagnoses : mockBoneDiagnoses;
           const randomReport = diagnosisList[Math.floor(Math.random() * diagnosisList.length)];
           setReport(randomReport);
@@ -118,17 +123,29 @@ function App() {
     }, 150);
   };
 
+  const resetTools = () => {
+    setBrightness(100);
+    setContrast(100);
+    setInvert(false);
+    setShowHeatmap(false);
+  };
+
   const reset = () => {
     setFile(null);
     setPreview(null);
     setReport(null);
     setIsScanning(false);
     setScanProgress(0);
+    resetTools();
+  };
+
+  const exportPDF = () => {
+    window.print();
   };
 
   return (
     <div className="app-container">
-      <nav className="navbar">
+      <nav className="navbar hide-on-print">
         <div className="navbar-content">
           <div className="logo">
             <Activity className="logo-icon" />
@@ -142,12 +159,12 @@ function App() {
       </nav>
 
       <main className="main-content">
-        <header className="page-header">
+        <header className="page-header hide-on-print">
           <h2>Radiological Diagnostic Center</h2>
           <p>Upload a Chest X-Ray or Musculoskeletal (Bone/Joint) radiograph. Select the routing model below.</p>
         </header>
 
-        <div className="scan-type-selector">
+        <div className="scan-type-selector hide-on-print">
           <button 
             className={`type-btn ${scanType === 'chest' ? 'active' : ''}`}
             onClick={() => { setScanType('chest'); reset(); }}
@@ -164,7 +181,7 @@ function App() {
 
         <div className="workspace">
           {/* Upload Panel */}
-          <div className={`upload-panel ${preview ? 'has-image' : ''}`}>
+          <div className={`upload-panel ${preview ? 'has-image' : ''} hide-on-print`}>
             {!preview ? (
               <div 
                 className={`dropzone ${isDragging ? 'dragging' : ''}`}
@@ -186,24 +203,66 @@ function App() {
                 <span className="file-types">Supports JPG, PNG, DICOM (Converted)</span>
               </div>
             ) : (
-              <div className="image-preview-container">
-                <img src={preview} alt="X-Ray Preview" className="preview-image" />
-                {isScanning && (
-                  <div className="scanning-overlay">
-                    <div className="scan-line"></div>
-                    <div className="scan-progress-box">
-                      <p>Running {scanType === 'chest' ? 'Pulmonary' : 'Musculoskeletal'} Analysis...</p>
-                      <div className="progress-bar-container">
-                        <div className="progress-bar" style={{ width: `${scanProgress}%` }}></div>
+              <div className="image-viewer">
+                <div className="image-preview-container">
+                  <img 
+                    src={preview} 
+                    alt="X-Ray Preview" 
+                    className="preview-image" 
+                    style={{
+                      filter: `brightness(${brightness}%) contrast(${contrast}%) ${invert ? 'invert(100%)' : ''}`
+                    }}
+                  />
+                  {report && showHeatmap && (
+                    <div 
+                      className="heatmap-overlay"
+                      style={{
+                        background: scanType === 'chest' 
+                          ? 'radial-gradient(circle at 60% 40%, rgba(255, 0, 0, 0.5) 0%, transparent 50%)' 
+                          : 'radial-gradient(circle at 50% 50%, rgba(255, 0, 0, 0.5) 0%, transparent 40%)',
+                      }}
+                    ></div>
+                  )}
+
+                  {isScanning && (
+                    <div className="scanning-overlay">
+                      <div className="scan-line"></div>
+                      <div className="scan-progress-box">
+                        <p>Running {scanType === 'chest' ? 'Pulmonary' : 'Musculoskeletal'} Analysis...</p>
+                        <div className="progress-bar-container">
+                          <div className="progress-bar" style={{ width: `${scanProgress}%` }}></div>
+                        </div>
+                        <span>{scanProgress}%</span>
                       </div>
-                      <span>{scanProgress}%</span>
                     </div>
-                  </div>
-                )}
-                {!isScanning && !report && (
-                  <div className="preview-actions">
-                    <button className="btn-secondary" onClick={reset}>Cancel</button>
-                    <button className="btn-primary" onClick={startDiagnosis}>Run {scanType === 'chest' ? 'Chest' : 'Bone'} Diagnosis</button>
+                  )}
+                  {!isScanning && !report && (
+                    <div className="preview-actions">
+                      <button className="btn-secondary" onClick={reset}>Cancel</button>
+                      <button className="btn-primary" onClick={startDiagnosis}>Run {scanType === 'chest' ? 'Chest' : 'Bone'} Diagnosis</button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Advanced Toolbox */}
+                {!isScanning && report && (
+                  <div className="image-tools">
+                    <div className="tool-group">
+                      <Sun size={14} />
+                      <input type="range" min="30" max="200" value={brightness} onChange={(e) => setBrightness(Number(e.target.value))} />
+                    </div>
+                    <div className="tool-group">
+                      <Contrast size={14} />
+                      <input type="range" min="30" max="250" value={contrast} onChange={(e) => setContrast(Number(e.target.value))} />
+                    </div>
+                    <div className="tool-buttons">
+                      <button className={`micro-btn ${invert ? 'active' : ''}`} onClick={() => setInvert(!invert)}>
+                        Invert
+                      </button>
+                      <button className={`micro-btn ${showHeatmap ? 'active' : ''}`} onClick={() => setShowHeatmap(!showHeatmap)}>
+                        <Layers size={14}/> Grad-CAM
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -212,7 +271,7 @@ function App() {
 
           {/* Report Panel */}
           {report && (
-            <div className="report-panel slide-in">
+            <div className="report-panel slide-in printable">
               <div className="report-header">
                 <FileText className="report-icon" />
                 <h3>Automated Radiological Report</h3>
@@ -259,11 +318,14 @@ function App() {
               </div>
 
               <div className="disclaimer">
-                <AlertCircle size={14} />
+                <AlertCircle size={14} className="hide-on-print" />
                 <p>This report was generated autonomously by a fine-tuned Artificial Intelligence agent. It is intended for research and educational purposes only and DOES NOT constitute professional medical advice.</p>
               </div>
 
-              <div className="report-actions">
+              <div className="report-actions hide-on-print">
+                <button className="btn-secondary" onClick={exportPDF}>
+                  <Download size={16} /> Export PDF
+                </button>
                 <button className="btn-primary" onClick={reset}>Scan Another</button>
               </div>
             </div>
