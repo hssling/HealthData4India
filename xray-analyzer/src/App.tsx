@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, ShieldCheck, Activity, AlertCircle, FileText, CheckCircle, Clock, Sun, Contrast, Layers, Download } from 'lucide-react';
+import { UploadCloud, ShieldCheck, Activity, AlertCircle, FileText, CheckCircle, Clock, Sun, Contrast, Layers, Download, SquareDashed, Ruler } from 'lucide-react';
 import './App.css';
 
 interface DiagnosticReport {
@@ -7,6 +7,7 @@ interface DiagnosticReport {
   findings: string[];
   description: string;
   confidence: number;
+  bbox?: { top: number, left: number, width: number, height: number }[];
 }
 
 const mockChestDiagnoses: DiagnosticReport[] = [
@@ -15,6 +16,7 @@ const mockChestDiagnoses: DiagnosticReport[] = [
     findings: ['Infiltration', 'Mild Pleural Effusion'],
     description: 'Bilateral lung fields show patchy opacities suggestive of infiltration. Blunting of the costophrenic angle indicates mild pleural effusion. Heart size remains within normal limits. Recommend clinical correlation for infectious etiology.',
     confidence: 89,
+    bbox: [{ top: 55, left: 65, width: 15, height: 15 }]
   },
   {
     overall_status: 'Normal',
@@ -27,6 +29,7 @@ const mockChestDiagnoses: DiagnosticReport[] = [
     findings: ['Mass', 'Atelectasis'],
     description: 'A well-defined opacity is observed in the upper right lobe, measuring approximately 3cm, highly concerning for a mass. Accompanying focal atelectasis in adjacent regions. Urgent follow-up via CT thorax is recommended.',
     confidence: 94,
+    bbox: [{ top: 25, left: 30, width: 20, height: 20 }]
   }
 ];
 
@@ -36,6 +39,7 @@ const mockBoneDiagnoses: DiagnosticReport[] = [
     findings: ['Fracture', 'Displacement'],
     description: 'There is a transverse fracture through the midshaft of the radius. Mild dorsal displacement of the distal fracture fragment is observed. No intra-articular extension. Adjacent soft tissues demonstrate swelling.',
     confidence: 95,
+    bbox: [{ top: 50, left: 45, width: 10, height: 10 }]
   },
   {
     overall_status: 'Normal',
@@ -48,6 +52,7 @@ const mockBoneDiagnoses: DiagnosticReport[] = [
     findings: ['Osteoarthritis', 'Joint Space Narrowing'],
     description: 'Moderate narrowing of the medial compartment joint space is noted. There is marginal osteophyte formation and subchondral sclerosis. Findings are consistent with moderate osteoarthritis. No acute osseous injury.',
     confidence: 92,
+    bbox: [{ top: 40, left: 50, width: 30, height: 15 }]
   }
 ];
 
@@ -65,6 +70,8 @@ function App() {
   const [contrast, setContrast] = useState(100);
   const [invert, setInvert] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showBoundingBox, setShowBoundingBox] = useState(true);
+  const [showRuler, setShowRuler] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +135,8 @@ function App() {
     setContrast(100);
     setInvert(false);
     setShowHeatmap(false);
+    setShowBoundingBox(true);
+    setShowRuler(false);
   };
 
   const reset = () => {
@@ -224,6 +233,29 @@ function App() {
                     ></div>
                   )}
 
+                  {report && showBoundingBox && report.bbox && report.bbox.map((box, idx) => (
+                    <div 
+                      key={idx}
+                      className="bounding-box"
+                      style={{
+                        top: `${box.top}%`,
+                        left: `${box.left}%`,
+                        width: `${box.width}%`,
+                        height: `${box.height}%`,
+                      }}
+                    >
+                      <span className="bbox-label">Target Area {idx + 1}</span>
+                    </div>
+                  ))}
+
+                  {report && showRuler && (
+                    <div className="ruler-tool-overlay">
+                      <div className="ruler-line">
+                        <span className="ruler-label">4.2cm</span>
+                      </div>
+                    </div>
+                  )}
+
                   {isScanning && (
                     <div className="scanning-overlay">
                       <div className="scan-line"></div>
@@ -256,6 +288,12 @@ function App() {
                       <input type="range" min="30" max="250" value={contrast} onChange={(e) => setContrast(Number(e.target.value))} />
                     </div>
                     <div className="tool-buttons">
+                      <button className={`micro-btn ${showBoundingBox ? 'active' : ''}`} onClick={() => setShowBoundingBox(!showBoundingBox)}>
+                        <SquareDashed size={14}/> BBox
+                      </button>
+                      <button className={`micro-btn ${showRuler ? 'active' : ''}`} onClick={() => setShowRuler(!showRuler)}>
+                        <Ruler size={14}/> Measure
+                      </button>
                       <button className={`micro-btn ${invert ? 'active' : ''}`} onClick={() => setInvert(!invert)}>
                         Invert
                       </button>
