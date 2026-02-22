@@ -9,7 +9,7 @@ interface DiagnosticReport {
   confidence: number;
 }
 
-const mockDiagnoses: DiagnosticReport[] = [
+const mockChestDiagnoses: DiagnosticReport[] = [
   {
     overall_status: 'Abnormal',
     findings: ['Infiltration', 'Mild Pleural Effusion'],
@@ -30,6 +30,27 @@ const mockDiagnoses: DiagnosticReport[] = [
   }
 ];
 
+const mockBoneDiagnoses: DiagnosticReport[] = [
+  {
+    overall_status: 'Abnormal',
+    findings: ['Fracture', 'Displacement'],
+    description: 'There is a transverse fracture through the midshaft of the radius. Mild dorsal displacement of the distal fracture fragment is observed. No intra-articular extension. Adjacent soft tissues demonstrate swelling.',
+    confidence: 95,
+  },
+  {
+    overall_status: 'Normal',
+    findings: ['Normal Joint', 'No Fracture'],
+    description: 'Bones and joints are in normal anatomic alignment. No acute fracture, subluxation, or dislocation is identified. Joint spaces are preserved. The regional soft tissues are unremarkable.',
+    confidence: 98,
+  },
+  {
+    overall_status: 'Abnormal',
+    findings: ['Osteoarthritis', 'Joint Space Narrowing'],
+    description: 'Moderate narrowing of the medial compartment joint space is noted. There is marginal osteophyte formation and subchondral sclerosis. Findings are consistent with moderate osteoarthritis. No acute osseous injury.',
+    confidence: 92,
+  }
+];
+
 function App() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -37,6 +58,7 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [report, setReport] = useState<DiagnosticReport | null>(null);
+  const [scanType, setScanType] = useState<'chest' | 'bone'>('chest');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,8 +107,9 @@ function App() {
         if (prev >= 100) {
           clearInterval(interval);
           setIsScanning(false);
-          // Pick a random mock report
-          const randomReport = mockDiagnoses[Math.floor(Math.random() * mockDiagnoses.length)];
+          // Pick based on scan type
+          const diagnosisList = scanType === 'chest' ? mockChestDiagnoses : mockBoneDiagnoses;
+          const randomReport = diagnosisList[Math.floor(Math.random() * diagnosisList.length)];
           setReport(randomReport);
           return 100;
         }
@@ -109,20 +132,35 @@ function App() {
         <div className="navbar-content">
           <div className="logo">
             <Activity className="logo-icon" />
-            <h1>MedGemma <span>X-Ray AI</span></h1>
+            <h1>MedGemma <span>Omni-XRay AI</span></h1>
           </div>
           <div className="nav-badges">
             <span className="badge safe"><ShieldCheck size={16}/> HIPPA Compliant</span>
-            <span className="badge research"><Clock size={16}/> 1.5-4B Param PEFT</span>
+            <span className="badge research"><Clock size={16}/> MURA & NIH PEFT</span>
           </div>
         </div>
       </nav>
 
       <main className="main-content">
         <header className="page-header">
-          <h2>Chest X-Ray Diagnostic Center</h2>
-          <p>Upload a PA/AP chest radiograph to receive an instant preliminary MedGemma AI diagnostic report.</p>
+          <h2>Radiological Diagnostic Center</h2>
+          <p>Upload a Chest X-Ray or Musculoskeletal (Bone/Joint) radiograph. Select the routing model below.</p>
         </header>
+
+        <div className="scan-type-selector">
+          <button 
+            className={`type-btn ${scanType === 'chest' ? 'active' : ''}`}
+            onClick={() => { setScanType('chest'); reset(); }}
+          >
+            Chest & Pulmonary
+          </button>
+          <button 
+            className={`type-btn ${scanType === 'bone' ? 'active' : ''}`}
+            onClick={() => { setScanType('bone'); reset(); }}
+          >
+            Bones & Joints (MURA)
+          </button>
+        </div>
 
         <div className="workspace">
           {/* Upload Panel */}
@@ -143,7 +181,7 @@ function App() {
                   hidden 
                 />
                 <UploadCloud className="upload-icon" size={64} />
-                <h3>Drop your X-Ray image here</h3>
+                <h3>Drop your {scanType === 'chest' ? 'Chest' : 'Bone'} X-Ray here</h3>
                 <p>or click to browse from your computer</p>
                 <span className="file-types">Supports JPG, PNG, DICOM (Converted)</span>
               </div>
@@ -154,7 +192,7 @@ function App() {
                   <div className="scanning-overlay">
                     <div className="scan-line"></div>
                     <div className="scan-progress-box">
-                      <p>Analyzing Image Factors...</p>
+                      <p>Running {scanType === 'chest' ? 'Pulmonary' : 'Musculoskeletal'} Analysis...</p>
                       <div className="progress-bar-container">
                         <div className="progress-bar" style={{ width: `${scanProgress}%` }}></div>
                       </div>
@@ -165,7 +203,7 @@ function App() {
                 {!isScanning && !report && (
                   <div className="preview-actions">
                     <button className="btn-secondary" onClick={reset}>Cancel</button>
-                    <button className="btn-primary" onClick={startDiagnosis}>Run AI Diagnosis</button>
+                    <button className="btn-primary" onClick={startDiagnosis}>Run {scanType === 'chest' ? 'Chest' : 'Bone'} Diagnosis</button>
                   </div>
                 )}
               </div>
@@ -186,12 +224,12 @@ function App() {
                   <span className="meta-value">ANON-{Math.floor(Math.random()*10000)}</span>
                 </div>
                 <div className="meta-item">
-                  <span className="meta-label">Date</span>
-                  <span className="meta-value">{new Date().toLocaleDateString()}</span>
+                  <span className="meta-label">Study Type</span>
+                  <span className="meta-value" style={{textTransform: 'capitalize'}}>{scanType} X-Ray</span>
                 </div>
                 <div className="meta-item">
-                  <span className="meta-label">Model</span>
-                  <span className="meta-value">MedGemma-1.5-4b-it-LoRA</span>
+                  <span className="meta-label">Model Engine</span>
+                  <span className="meta-value">{scanType === 'chest' ? 'MedGemma-NIH-LoRA' : 'MedGemma-MURA'}</span>
                 </div>
               </div>
 
@@ -226,7 +264,7 @@ function App() {
               </div>
 
               <div className="report-actions">
-                <button className="btn-primary" onClick={reset}>Scan Another Image</button>
+                <button className="btn-primary" onClick={reset}>Scan Another</button>
               </div>
             </div>
           )}
