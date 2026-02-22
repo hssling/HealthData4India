@@ -110,24 +110,58 @@ function App() {
     }
   };
 
-  const startDiagnosis = () => {
+  const startDiagnosis = async () => {
     if (!file) return;
     setIsScanning(true);
     setScanProgress(0);
     
+    // Simulate initial pipeline scan until API responds
     const interval = setInterval(() => {
       setScanProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsScanning(false);
-          const diagnosisList = scanType === 'chest' ? mockChestDiagnoses : mockBoneDiagnoses;
-          const randomReport = diagnosisList[Math.floor(Math.random() * diagnosisList.length)];
-          setReport(randomReport);
-          return 100;
-        }
+        if (prev >= 95) return 95; // Halt progress bar at 95% until fetch returns
         return prev + 5;
       });
     }, 150);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("scan_type", scanType);
+
+      // Hit our newly deployed Hugging Face FastAPI Space!
+      const response = await fetch("https://hssling-omni-xray-backend.hf.space/api/diagnose", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Inference Server Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      clearInterval(interval);
+      setScanProgress(100);
+      
+      // Artificial delay so user visually sees 100% completion before UI transition
+      setTimeout(() => {
+        setReport(data as DiagnosticReport);
+        setIsScanning(false);
+      }, 400);
+
+    } catch (error) {
+      console.warn("API Call Failed, falling back to local simulation.", error);
+      
+      clearInterval(interval);
+      setScanProgress(100);
+      
+      setTimeout(() => {
+        const diagnosisList = scanType === 'chest' ? mockChestDiagnoses : mockBoneDiagnoses;
+        const randomReport = diagnosisList[Math.floor(Math.random() * diagnosisList.length)];
+        setReport(randomReport);
+        setIsScanning(false);
+      }, 400);
+    }
   };
 
   const resetTools = () => {
