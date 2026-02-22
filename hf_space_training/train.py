@@ -8,6 +8,8 @@ from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from trl import SFTTrainer
 
 def train():
+    global torch
+    print("Code Version: 1.0.2 (Shadow Fix)", flush=True)
     hf_token = os.environ.get("HF_TOKEN")
     if not hf_token:
         print("Empty HF_TOKEN. Aborting.")
