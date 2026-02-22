@@ -1,0 +1,5 @@
+/* Clean index.css to rely purely on App.css */
+body {
+  margin: 0;
+  padding: 0;
+}
