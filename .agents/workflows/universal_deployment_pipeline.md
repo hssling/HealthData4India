@@ -2,58 +2,105 @@
 description: Universal Autonomous Model Finetuning and Deployment Pipeline
 ---
 
-# Universal Autonomous Pipeline (UAP) 🧠
+# 🌐 OmniAgent Orchestrator Framework (OOF)
 
-_Automated end-to-end framework for generative app building, AI deployment, and dataset finetuning across Medical, Media, and R&D domains._
+_An autonomous, zero-touch agentic framework inspired by OpenClaw. Designed to ingest a single natural language prompt and autonomously architect, train, and deploy full-stack AI applications across any industry (Medical, Media, Fintech, BioTech, etc.)._
 
-## Goal
+## 🎯 The Ultimate Goal: Prompts-to-Production
 
-To orchestrate an architecture where a single USER prompt (e.g., "Build an automated social media uploader app" or "Finetune MedGemma on a Genetics Dataset") automatically triggers data extraction, PEFT Finetuning on Hugging Face Spaces, FastAPI Backend containerization, and React UI deployment without manual intervention.
+To create an "Agent of Agents." The USER provides a single objective (e.g., _"Build an automated social media uploader app"_ or _"Create a multi-omics drug discovery portal"_). The OmniAgent framework automatically spawns sub-agents to handle Data Engineering, Model Finetuning, Backend Deployment, and Frontend UI creation without human intervention.
 
-## 🛠️ Phase 1: Context Definition & Resource Extraction
+---
 
-1. **Analyze the Prompt Domain:** Evaluate if the request is Medical (e.g., `google/medgemma-1.5-4b-it`), Text-Generation/News (`meta-llama/Llama-3-8b-instruct`), or specialized Vision/Multi-Omics.
-2. **Autonomous Dataset Generation:**
-   - Execute a Python script utilizing `huggingface_hub` to search and download the relevant dataset based on the prompt.
-   - Using the `datasets` Python module, automatically clean the columns into standard `"prompt"` and `"completion"` mapping objects.
-   - Programmatically push the generated clean dataset to the USER's Hugging Face account (e.g., `hssling/{topic}-Control`).
+## 🏗️ Core Architecture: The Sub-Agent Swarm
+
+When a command is given, the Orchestrator spawns four distinct, specialized AI Sub-Agents.
+
+### 1. 🗄️ The Data Engineer Agent (DEA)
+
+**Role:** Finding, cleaning, and formatting the raw materials.
+
+- **Web Scraping & APIs:** Connects to Hugging Face Datasets, Kaggle APIs, Twitter/X APIs, or scraped research journals (e.g., PubMed, UniProt).
+- **Data ETL:** Automatically parses CSVs, JSONs, or raw text into the required `{"prompt": "...", "completion": "..."}` format needed for LLM instruction tuning.
+- **Artifact Output:** Automatically pushes a clean dataset artifact up to `huggingface.co/datasets/USER/{Domain}-Cleaned`.
+
+### 2. 🧠 The ML Scientist Agent (MSA)
+
+**Role:** Model selection and Compute-Efficient Fine-Tuning.
+
+- **Model Routing:** Determines if the task needs a Vision model (like MedGemma), a fast text model (Llama-3-8b), or a coding model (Qwen).
+- **Autonomous Compute:** Instead of needing local GPUs, the MSA dynamically writes a `train.py` script featuring **4-bit QLoRA Quantization**.
+- **Deployment execution:** The MSA programmatically provisions a Free-Tier Hugging Face Space using the `huggingface_hub` Python SDK, secretly injects the USER's Write Token, and forces the Hugging Face cloud to train the model.
+- **Artifact Output:** Pushes the trained `.safetensors` LoRA weights to the USER's Hugging Face Model Hub.
+
+### 3. ⚙️ The Backend DevOps Agent (BDA)
+
+**Role:** Containerization and Microservices.
+
+- **API Generation:** Writes a highly asynchronous `FastAPI` server (`main.py`) that natively loads the weights trained by the MSA.
+- **Dockerization:** Authors a CPU-Optimized or GPU-Accelerated `Dockerfile` based on deployment constraints.
+- **Serverless Deployment:** Programmatically creates a Hugging Face Docker Space, Vercel Serverless Function, or AWS EC2 instance, uploading the Dockerized API.
+- **Artifact Output:** A live, public REST API endpoint (e.g., `https://api.omniagent-{task}.hf.space/execute`).
+
+### 4. 🎨 The Frontend UI/UX Agent (FUA)
+
+**Role:** Human-Computer Interaction interface matching the exact prompt.
+
+- **Scaffolding:** Automatically runs `npx -y create-vite@latest webapp --template react-ts`.
+- **Component Generation:** Designs React components tailored to the niche (e.g., A DNA strand viewer for Genetics, a Calendar scheduler for Social Media, or a DICOM viewer for Medicine) using libraries like `lucide-react` and `framer-motion`.
+- **API Integration:** Writes the `fetch()` handlers to correctly parse data from the BDA's API endpoint.
+- **Deployment Execution:** Commits the React application to a GitHub branch and triggers Netlify or Vercel CI/CD pipelines.
+
+---
 
 // turbo-all
 
-## 🚀 Phase 2: Remote GPU Finetuning Orchestration
+## 🌍 Vertical Integrations (What The Swarm Can Build)
 
-3. **Generate Dedicated Training Space:**
-   - Write `hf_space_training/train.py` tailored to the dataset. Apply **4-bit BitsAndBytes QLoRA** config to the selected base model.
-   - Inject the USER's Hugging Face token dynamically via `HfApi.add_space_secret()` to enable headless operations.
-4. **Deploy Training Scripts:**
-   - Push the training folder to a brand-new free-tier or GPU Hugging Face Space automatically.
-   - The HF Space boots, detects the secret token, trains the adapters, and natively pushes the resulting `.safetensors` back to a new model repository (e.g., `hssling/Agent-{Topic}`).
+### 🩺 1. Medical & Multi-Omics
 
-## 🖥️ Phase 3: Autonomous WebApp Generation (Frontend + Backend)
+- **Prompt:** _"Build me a predictive multi-omics app identifying BRCA mutations from patient RNA-seq data."_
+- **Swarm Action:**
+  - DEA fetches TCGA / cBioPortal genomic data.
+  - MSA fine-tunes a domain-specific BioBERT or MedGemma model.
+  - BDA creates a HIPAA-compliant inference API.
+  - FUA deploys a React dashboard for genetic counselors displaying mutation probabilities.
 
-5. **Generate Fast-API GPU Backend:**
-   - Create a Python `backend/main.py` utilizing FastAPI.
-   - Hardcode logic to dynamically download the _newly trained_ Hugging Face PEFT weights from Phase 2.
-   - Wrap the API in a CPU-Optimized Dockerfile.
-   - Push this backend logic to an autonomous Hugging Face Docker Space `https://{user}-api-{topic}.hf.space`.
-6. **Generate React/Vite User Interface:**
-   - Create a polished dark-mode React application (`npx -y create-vite@latest webapp --template react-ts`).
-   - Wire the React `fetch()` routes directly to the Hugging Face Docker Space URL created in Step 5.
-   - Push the complete codebase to a GitHub branch mapped to a continuous deployment platform (Vercel/Netlify).
+### 📈 2. Social Media & Automated Media Publishing
 
-## 🌍 Supported Prompt Execution Examples
+- **Prompt:** _"Create an autonomous news aggregator and social media publisher for tech news."_
+- **Swarm Action:**
+  - DEA configures scrapers for TechCrunch/HackerNews.
+  - MSA fine-tunes Llama-3 to summarize articles into viral Twitter hooks.
+  - BDA builds an automated Cron-job FastAPI server linked to the official X/Twitter API.
+  - FUA builds a Calendar Dashboard to view and approve upcoming scheduled posts.
 
-### Example A: Medical & Multi-Omics
+### 🧬 3. Drug Discovery & R&D
 
-- **USER Prompt:** "Finetune an AI on BRCA mutations and build a diagnostic web app."
-- **Execution:** Auto-fetches genomic datasets -> Triggers MedGemma QLoRA training -> Deploys React Dashboard for Genetic Counselors highlighting risk percentages via API.
+- **Prompt:** _"Build an app to assess protein drug-target binding affinities."_
+- **Swarm Action:**
+  - DEA pulls `.pdb` structural files from UniProt.
+  - MSA fine-tunes Evolutionary Scale Modeling (ESMFold) representations.
+  - BDA deploys a PyTorch inference engine calculating binding scores.
+  - FUA builds a web portal using WebGL 3D viewers (like NGL viewer) so researchers can spin and interact with the protein structures in the browser.
 
-### Example B: Social Media & Content Publishing
+### 💰 4. FinTech & Algorithmic Trading
 
-- **USER Prompt:** "Build an automated social media uploader app."
-- **Execution:** Fetches Twitter/Reddit trend datasets -> Trains Llama-3 to generate viral hooks -> Deploys a FastAPI backend linked to Twitter API -> Deploys React scheduler dashboard.
+- **Prompt:** _"Build a dashboard visualizing algorithmic sentiment analysis on Crypto assets."_
+- **Swarm Action:**
+  - DEA connects to Binance/Coinbase APIs and scrapes top financial subreddits.
+  - MSA fine-tunes a financial sentiment model (FinBERT) on current memecoin trends.
+  - BDA provisions a high-speed vector database for semantic search.
+  - FUA builds a modern TradingView-style React graph interface highlighting real-time sentiment velocity over price charts.
 
-### Example C: Drug Discovery R&D
+---
 
-- **USER Prompt:** "Build a protein folding analysis tool."
-- **Execution:** Auto-pulls UniProt datasets -> Finetunes evolutionary embeddings -> Hosts a React portal utilizing 3D `.pdb` viewers intersecting with our backend AI API.
+## 🔑 Orchestration Execution Pipeline
+
+If the prompt `Start OmniAgent` is triggered, follow this autonomous cascade:
+
+1. `mkdir -p omni_agent_workspace`
+2. Run DEA scripts to fetch raw `.csv` or `.jsonl` payloads.
+3. Automatically provision `hf_space_trainer/` and push to HF spaces with embedded HF Tokens for immediate cloud training.
+4. Auto-generate `backend/` and `frontend/` folders. Complete React and Python codebases asynchronously.
+5. Push the compiled React architecture to a `webapp-frontend` git branch and trigger final deployment.
