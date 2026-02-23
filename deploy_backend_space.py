@@ -51,7 +51,7 @@ pinned: false
 app_port: 8000
 ---
 """
-        with open("hf_space_backend/README.md", "w") as f:
+        with open("hf_space_backend/README.md", "w", encoding="utf-8") as f:
             f.write(readme_content)
 
         print(f"Uploading FastAPI backend to the Space...")
@@ -60,7 +60,7 @@ app_port: 8000
             repo_id=repo_id,
             repo_type="space"
         )
-        print("✅ SUCCESS! FastAPI Backend deployed automatically.")
+        print("SUCCESS! FastAPI Backend deployed automatically.")
         print(f"Your API will live at: https://huggingface.co/spaces/{repo_id}")
         print(f"API Endpoint Route: https://{user}-omni-xray-backend.hf.space/api/diagnose")
         
