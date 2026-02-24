@@ -200,7 +200,7 @@ function App() {
         <div className="navbar-content">
           <div className="logo">
             <Activity className="logo-icon" />
-            <h1>MedGemma <span>Omni-XRay AI</span></h1>
+            <h1>Radiological <span>X-Ray AI</span></h1>
           </div>
           <div className="nav-badges">
             <span className="badge safe"><ShieldCheck size={16}/> HIPPA Compliant</span>
